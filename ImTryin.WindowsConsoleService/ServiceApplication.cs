@@ -12,7 +12,7 @@ public static class ServiceApplication
     {
         if (args.Length == 0)
         {
-            RunAsConsole(args, serviceInfo, actualService);
+            RunAsConsole(serviceInfo, actualService);
             return;
         }
 
@@ -46,14 +46,15 @@ public static class ServiceApplication
         Console.WriteLine();
     }
 
-    private static void RunAsConsole(string[] args, ServiceInfo serviceInfo, IActualService actualService)
+    private static void RunAsConsole(ServiceInfo serviceInfo, IActualService actualService)
     {
         Console.WriteLine(serviceInfo.DisplayName);
 
-        actualService.Start(args);
-
-        Console.WriteLine("Press any key to exit...");
-        Console.ReadKey(true);
+        if (actualService.Start(false))
+        {
+            Console.WriteLine("Press any key to exit...");
+            Console.ReadKey(true);
+        }
 
         actualService.Stop();
     }

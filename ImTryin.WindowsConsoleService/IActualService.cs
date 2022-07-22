@@ -2,6 +2,6 @@
 
 public interface IActualService
 {
-    void Start(string[] args);
+    bool Start(bool runningAsService);
     void Stop();
 }

@@ -14,7 +14,8 @@ public class WindowsService : ServiceBase
 
     protected override void OnStart(string[] args)
     {
-        _actualService.Start(args);
+        if (!_actualService.Start(true))
+            Stop();
     }
 
     protected override void OnStop()
