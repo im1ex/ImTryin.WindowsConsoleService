@@ -3,6 +3,7 @@ using System.Collections;
 using System.Configuration.Install;
 using System.Reflection;
 using System.ServiceProcess;
+using System.Threading;
 
 namespace ImTryin.WindowsConsoleService;
 
@@ -12,12 +13,18 @@ public static class ServiceApplication
     {
         if (args.Length == 0)
         {
-            RunAsConsole(serviceInfo, actualService);
+            RunAsConsole(serviceInfo, actualService, false);
             return;
         }
 
         if (args.Length == 1)
         {
+            if (string.Equals(args[0], "/hidden", StringComparison.OrdinalIgnoreCase))
+            {
+                RunAsConsole(serviceInfo, actualService, true);
+                return;
+            }
+
             if (string.Equals(args[0], "/service", StringComparison.OrdinalIgnoreCase))
             {
                 RunAsService(serviceInfo, actualService);
@@ -46,8 +53,34 @@ public static class ServiceApplication
         Console.WriteLine();
     }
 
-    private static void RunAsConsole(ServiceInfo serviceInfo, IActualService actualService)
+    private static volatile bool __stopping;
+
+    private static void RunAsConsole(ServiceInfo serviceInfo, IActualService actualService, bool hidden)
     {
+        if (serviceInfo.ConsoleServiceInfo == null || string.IsNullOrWhiteSpace(serviceInfo.ConsoleServiceInfo.SingletonId))
+            throw new ArgumentNullException(nameof(serviceInfo), nameof(serviceInfo.ConsoleServiceInfo.SingletonId) + " is not specified!");
+
+        using var eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, serviceInfo.ConsoleServiceInfo.SingletonId, out var createdNew);
+        if (!createdNew)
+        {
+            eventWaitHandle.Set();
+
+            Console.WriteLine("{0} is already running.", serviceInfo.DisplayName);
+
+            return;
+        }
+
+
+        if (hidden)
+        {
+            if (WindowApi.GetConsoleProcessList(new int[1], 1) > 1)
+                Console.WriteLine("Do not use /hidden argument when running application from existing console. Skip hiding.");
+            else
+                WindowApi.ShowWindow(WindowApi.GetConsoleWindow(), WindowApi.CommandShow.Hide);
+        }
+
+        new Action<EventWaitHandle>(ActivateConsole).BeginInvoke(eventWaitHandle, null, null);
+
         Console.WriteLine(serviceInfo.DisplayName);
 
         if (actualService.Start(false))
@@ -56,8 +89,28 @@ public static class ServiceApplication
             Console.ReadKey(true);
         }
 
+        __stopping = true;
+        eventWaitHandle.Set();
+
         actualService.Stop();
     }
+
+    private static void ActivateConsole(EventWaitHandle eventWaitHandle)
+    {
+        while (true)
+        {
+            eventWaitHandle.WaitOne();
+
+            if (__stopping)
+                break;
+
+            var consoleWindowHandle = WindowApi.GetConsoleWindow();
+
+            WindowApi.ShowWindow(consoleWindowHandle, WindowApi.CommandShow.Show);
+            WindowApi.SetForegroundWindow(consoleWindowHandle);
+        }
+    }
+
 
     private static void RunAsService(ServiceInfo serviceInfo, IActualService actualService)
     {
@@ -66,11 +119,14 @@ public static class ServiceApplication
 
     private static Installer CreateInstaller(ServiceInfo serviceInfo)
     {
+        if (serviceInfo.WindowsServiceInfo == null)
+            throw new ArgumentNullException(nameof(serviceInfo), nameof(serviceInfo.WindowsServiceInfo) + " is not specified!");
+
         var serviceProcessInstaller = new ServiceProcessInstaller
         {
-            Account = serviceInfo.Account,
-            Username = serviceInfo.Username,
-            Password = serviceInfo.Password,
+            Account = serviceInfo.WindowsServiceInfo.Account,
+            Username = serviceInfo.WindowsServiceInfo.Username,
+            Password = serviceInfo.WindowsServiceInfo.Password,
         };
 
         var commandLine = "\"" + Assembly.GetEntryAssembly()!.Location + "\" /service";
@@ -81,8 +137,8 @@ public static class ServiceApplication
             DisplayName = serviceInfo.DisplayName,
             Description = serviceInfo.Description,
             ServiceName = serviceInfo.Name,
-            StartType = serviceInfo.StartType,
-            DelayedAutoStart = serviceInfo.DelayedAutoStart,
+            StartType = serviceInfo.WindowsServiceInfo.StartType,
+            DelayedAutoStart = serviceInfo.WindowsServiceInfo.DelayedAutoStart,
         });
 
         return serviceProcessInstaller;
