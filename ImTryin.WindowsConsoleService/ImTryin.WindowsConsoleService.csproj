@@ -35,7 +35,7 @@ Only usable then starting by Window Service Control Manager.
 ```
 See https://github.com/imlex/ImTryin.WindowsConsoleService/tree/master/ImTryin.WindowsConsoleService.SampleWindowsService for example.</Description>
     <PackageLicenseExpression>Unlicense</PackageLicenseExpression>
-    <Version>1.0.4</Version>
+    <Version>1.0.5</Version>
   </PropertyGroup>
 
   <ItemGroup>
