@@ -2,7 +2,6 @@
 using System.Collections;
 using System.Configuration.Install;
 using System.Linq;
-using System.Reflection;
 using System.ServiceProcess;
 
 namespace ImTryin.WindowsConsoleService;
@@ -21,7 +20,7 @@ public class WindowsServiceApplication
             Password = serviceInfo.WindowsServiceInfo.Password,
         };
 
-        var commandLine = "\"" + Assembly.GetEntryAssembly()!.Location + "\" /service";
+        var commandLine = "\"" + serviceInfo.ExecutableLocation + "\" /service";
         serviceProcessInstaller.Context = new InstallContext {Parameters = {["assemblypath"] = commandLine}};
 
         serviceProcessInstaller.Installers.Add(new ServiceInstaller

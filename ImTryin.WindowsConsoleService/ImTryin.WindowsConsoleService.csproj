@@ -30,6 +30,7 @@ See https://github.com/imlex/ImTryin.WindowsConsoleService/tree/master/ImTryin.W
   </PropertyGroup>
 
   <ItemGroup>
+    <Reference Include="Microsoft.CSharp" />
     <Reference Include="System.Configuration.Install" />
     <Reference Include="System.ServiceProcess" />
   </ItemGroup>

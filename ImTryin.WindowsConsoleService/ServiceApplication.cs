@@ -20,6 +20,18 @@ public static class ServiceApplication
                 return;
             }
 
+            if (string.Equals(args[0], "/installConsole", StringComparison.OrdinalIgnoreCase))
+            {
+                new ConsoleServiceApplication().Install(serviceInfo);
+                return;
+            }
+
+            if (string.Equals(args[0], "/uninstallConsole", StringComparison.OrdinalIgnoreCase))
+            {
+                new ConsoleServiceApplication().Uninstall(serviceInfo);
+                return;
+            }
+
             if (string.Equals(args[0], "/installService", StringComparison.OrdinalIgnoreCase))
             {
                 new WindowsServiceApplication().Install(serviceInfo);
@@ -59,15 +71,21 @@ public static class ServiceApplication
         Console.WriteLine(serviceInfo.DisplayName);
         Console.WriteLine("Following arguments available:");
 
-        Console.WriteLine("                     - runs as console service. Only one app instance is supported.");
-        Console.WriteLine("  /hidden            - runs as console service and hide console. It is possible to show hidden console by starting app one more time.");
+        Console.WriteLine("                     - runs as Console service. Only one app instance is supported.");
 
-        Console.WriteLine("  /installService    - installs as Windows service. Administrative privileges are required.");
-        Console.WriteLine("  /uninstallService  - installs as Windows service. Administrative privileges are required.");
+        Console.WriteLine("  /hidden            - runs as Console service and hide console.");
+        Console.WriteLine("                       It is possible to show hidden console by starting app one more time.");
+
+        Console.WriteLine("  /installConsole    - installs Console service. Creates shortcut in User's Startup folder.");
+        Console.WriteLine("  /uninstallConsole  - installs Console service. Deletes shortcut from User's Startup folder.");
+
+        Console.WriteLine("  /installService    - installs Windows service. Administrative privileges are required.");
+        Console.WriteLine("  /uninstallService  - uninstalls Windows service. Administrative privileges are required.");
 
         Console.WriteLine("  /startService      - starts Windows service. Administrative privileges are required.");
         Console.WriteLine("  /stopService       - stops Windows service. Administrative privileges are required.");
 
-        Console.WriteLine("  /service           - runs as Windows service. Only usable then starting by Window Service Control Manager.");
+        Console.WriteLine("  /service           - runs as Windows service.");
+        Console.WriteLine("                       Only usable then starting by Window Service Control Manager.");
     }
 }

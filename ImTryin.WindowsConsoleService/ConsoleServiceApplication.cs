@@ -1,15 +1,48 @@
 ﻿using System;
-using System.Collections;
-using System.Configuration.Install;
-using System.Reflection;
-using System.ServiceProcess;
+using System.IO;
 using System.Threading;
 
 namespace ImTryin.WindowsConsoleService;
 
 internal class ConsoleServiceApplication
 {
-    private volatile bool __stopping;
+    private string GetStartupLinkPath(ServiceInfo serviceInfo)
+    {
+        var startupFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
+
+        return Path.Combine(startupFolderPath, serviceInfo.DisplayName + ".lnk");
+    }
+
+    public void Install(ServiceInfo serviceInfo)
+    {
+        var startupLinkPath = GetStartupLinkPath(serviceInfo);
+         if (File.Exists(startupLinkPath))
+        {
+            Console.WriteLine("'{0}' file already exists!", startupLinkPath);
+            return;
+        }
+
+        Type shellType = Type.GetTypeFromProgID("WScript.Shell");
+        dynamic shell = Activator.CreateInstance(shellType);
+        dynamic shortcut = shell.CreateShortcut(startupLinkPath);
+
+        shortcut.TargetPath = serviceInfo.ExecutableLocation;
+        shortcut.Arguments = "/hidden";
+        shortcut.WorkingDirectory = Path.GetDirectoryName(serviceInfo.ExecutableLocation);
+
+        shortcut.Save();
+    }
+
+    public void Uninstall(ServiceInfo serviceInfo)
+    {
+        var startupLinkPath = GetStartupLinkPath(serviceInfo);
+        if (!File.Exists(startupLinkPath))
+            Console.WriteLine("'{0}' file is not found!", startupLinkPath);
+        else
+            File.Delete(startupLinkPath);
+    }
+
+    private volatile bool _stopping;
 
     public void Run(ServiceInfo serviceInfo, IActualService actualService, bool hidden)
     {
@@ -45,7 +78,7 @@ internal class ConsoleServiceApplication
             Console.ReadKey(true);
         }
 
-        __stopping = true;
+        _stopping = true;
         eventWaitHandle.Set();
 
         actualService.Stop();
@@ -57,7 +90,7 @@ internal class ConsoleServiceApplication
         {
             eventWaitHandle.WaitOne();
 
-            if (__stopping)
+            if (_stopping)
                 break;
 
             var consoleWindowHandle = WindowApi.GetConsoleWindow();
@@ -65,52 +98,5 @@ internal class ConsoleServiceApplication
             WindowApi.ShowWindow(consoleWindowHandle, WindowApi.CommandShow.Show);
             WindowApi.SetForegroundWindow(consoleWindowHandle);
         }
-    }
-
-
-    private void RunAsService(ServiceInfo serviceInfo, IActualService actualService)
-    {
-        ServiceBase.Run(new WindowsService(serviceInfo, actualService));
-    }
-
-    private Installer CreateInstaller(ServiceInfo serviceInfo)
-    {
-        if (serviceInfo.WindowsServiceInfo == null)
-            throw new ArgumentNullException(nameof(serviceInfo), nameof(serviceInfo.WindowsServiceInfo) + " is not specified!");
-
-        var serviceProcessInstaller = new ServiceProcessInstaller
-        {
-            Account = serviceInfo.WindowsServiceInfo.Account,
-            Username = serviceInfo.WindowsServiceInfo.Username,
-            Password = serviceInfo.WindowsServiceInfo.Password,
-        };
-
-        var commandLine = "\"" + Assembly.GetEntryAssembly()!.Location + "\" /service";
-        serviceProcessInstaller.Context = new InstallContext {Parameters = {["assemblypath"] = commandLine}};
-
-        serviceProcessInstaller.Installers.Add(new ServiceInstaller
-        {
-            DisplayName = serviceInfo.DisplayName,
-            Description = serviceInfo.Description,
-            ServiceName = serviceInfo.Name,
-            StartType = serviceInfo.WindowsServiceInfo.StartType,
-            DelayedAutoStart = serviceInfo.WindowsServiceInfo.DelayedAutoStart,
-        });
-
-        return serviceProcessInstaller;
-    }
-
-    private void InstallService(ServiceInfo serviceInfo)
-    {
-        using var installer = CreateInstaller(serviceInfo);
-
-        installer.Install(new Hashtable());
-    }
-
-    private void UninstallService(ServiceInfo serviceInfo)
-    {
-        using var installer = CreateInstaller(serviceInfo);
-
-        installer.Uninstall(null);
     }
 }

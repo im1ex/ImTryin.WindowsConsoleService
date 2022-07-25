@@ -1,4 +1,6 @@
-﻿namespace ImTryin.WindowsConsoleService;
+﻿using System.Reflection;
+
+namespace ImTryin.WindowsConsoleService;
 
 public class ServiceInfo
 {
@@ -9,4 +11,6 @@ public class ServiceInfo
     public ConsoleServiceInfo? ConsoleServiceInfo { get; set; }
 
     public WindowsServiceInfo? WindowsServiceInfo { get; set; }
+
+    public string ExecutableLocation => Assembly.GetEntryAssembly()!.Location;
 }
