@@ -6,12 +6,12 @@ public class ActualService : IActualService
 {
     public bool Start(bool runningAsService)
     {
-        Console.WriteLine("SampleWindowsService started...");
+        Console.WriteLine("ActualService started...");
         return true;
     }
 
     public void Stop()
     {
-        Console.WriteLine("SampleWindowsService stopped!");
+        Console.WriteLine("ActualService stopped!");
     }
 }

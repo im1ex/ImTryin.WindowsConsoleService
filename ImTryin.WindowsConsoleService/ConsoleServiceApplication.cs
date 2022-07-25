@@ -6,17 +6,30 @@ namespace ImTryin.WindowsConsoleService;
 
 internal class ConsoleServiceApplication
 {
-    private string GetStartupLinkPath(ServiceInfo serviceInfo)
+    private readonly ServiceInfo _serviceInfo;
+    private readonly string _singletonId;
+
+    public ConsoleServiceApplication(ServiceInfo serviceInfo)
+    {
+        _serviceInfo = serviceInfo;
+
+        if (serviceInfo.ConsoleServiceInfo == null || string.IsNullOrWhiteSpace(serviceInfo.ConsoleServiceInfo.SingletonId))
+            throw new ArgumentNullException(nameof(serviceInfo), nameof(serviceInfo.ConsoleServiceInfo.SingletonId) + " is not specified!");
+
+        _singletonId = serviceInfo.ConsoleServiceInfo.SingletonId;
+    }
+
+    private string GetStartupLinkPath()
     {
         var startupFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
 
-        return Path.Combine(startupFolderPath, serviceInfo.DisplayName + ".lnk");
+        return Path.Combine(startupFolderPath, _serviceInfo.DisplayName + ".lnk");
     }
 
-    public void Install(ServiceInfo serviceInfo)
+    public void Install()
     {
-        var startupLinkPath = GetStartupLinkPath(serviceInfo);
-         if (File.Exists(startupLinkPath))
+        var startupLinkPath = GetStartupLinkPath();
+        if (File.Exists(startupLinkPath))
         {
             Console.WriteLine("'{0}' file already exists!", startupLinkPath);
             return;
@@ -26,16 +39,16 @@ internal class ConsoleServiceApplication
         dynamic shell = Activator.CreateInstance(shellType);
         dynamic shortcut = shell.CreateShortcut(startupLinkPath);
 
-        shortcut.TargetPath = serviceInfo.ExecutableLocation;
+        shortcut.TargetPath = _serviceInfo.ExecutableLocation;
         shortcut.Arguments = "/hidden";
-        shortcut.WorkingDirectory = Path.GetDirectoryName(serviceInfo.ExecutableLocation);
+        shortcut.WorkingDirectory = Path.GetDirectoryName(_serviceInfo.ExecutableLocation);
 
         shortcut.Save();
     }
 
-    public void Uninstall(ServiceInfo serviceInfo)
+    public void Uninstall()
     {
-        var startupLinkPath = GetStartupLinkPath(serviceInfo);
+        var startupLinkPath = GetStartupLinkPath();
         if (!File.Exists(startupLinkPath))
             Console.WriteLine("'{0}' file is not found!", startupLinkPath);
         else
@@ -44,17 +57,14 @@ internal class ConsoleServiceApplication
 
     private volatile bool _stopping;
 
-    public void Run(ServiceInfo serviceInfo, IActualService actualService, bool hidden)
+    public void Run(IActualService actualService, bool hidden)
     {
-        if (serviceInfo.ConsoleServiceInfo == null || string.IsNullOrWhiteSpace(serviceInfo.ConsoleServiceInfo.SingletonId))
-            throw new ArgumentNullException(nameof(serviceInfo), nameof(serviceInfo.ConsoleServiceInfo.SingletonId) + " is not specified!");
-
-        using var eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, serviceInfo.ConsoleServiceInfo.SingletonId, out var createdNew);
+        using var eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, _singletonId, out var createdNew);
         if (!createdNew)
         {
             eventWaitHandle.Set();
 
-            Console.WriteLine("{0} is already running.", serviceInfo.DisplayName);
+            Console.WriteLine("{0} is already running.", _serviceInfo.DisplayName);
 
             return;
         }
@@ -70,7 +80,7 @@ internal class ConsoleServiceApplication
 
         new Action<EventWaitHandle>(ActivateConsole).BeginInvoke(eventWaitHandle, null, null);
 
-        Console.WriteLine(serviceInfo.DisplayName);
+        Console.WriteLine(_serviceInfo.DisplayName);
 
         if (actualService.Start(false))
         {

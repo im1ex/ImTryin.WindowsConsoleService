@@ -8,67 +8,75 @@ namespace ImTryin.WindowsConsoleService;
 
 public class WindowsServiceApplication
 {
-    private Installer CreateInstaller(ServiceInfo serviceInfo)
-    {
-        if (serviceInfo.WindowsServiceInfo == null)
-            throw new ArgumentNullException(nameof(serviceInfo), nameof(serviceInfo.WindowsServiceInfo) + " is not specified!");
+    private readonly ServiceInfo _serviceInfo;
+    private readonly WindowsServiceInfo _windowsServiceInfo;
 
+    public WindowsServiceApplication(ServiceInfo serviceInfo)
+    {
+        _serviceInfo = serviceInfo;
+
+        _windowsServiceInfo = _windowsServiceInfo ??
+                              throw new ArgumentNullException(nameof(serviceInfo), nameof(_windowsServiceInfo) + " is not specified!");
+    }
+
+    private Installer CreateInstaller()
+    {
         var serviceProcessInstaller = new ServiceProcessInstaller
         {
-            Account = serviceInfo.WindowsServiceInfo.Account,
-            Username = serviceInfo.WindowsServiceInfo.Username,
-            Password = serviceInfo.WindowsServiceInfo.Password,
+            Account = _windowsServiceInfo.Account,
+            Username = _windowsServiceInfo.Username,
+            Password = _windowsServiceInfo.Password,
         };
 
-        var commandLine = "\"" + serviceInfo.ExecutableLocation + "\" /service";
+        var commandLine = "\"" + _serviceInfo.ExecutableLocation + "\" /service";
         serviceProcessInstaller.Context = new InstallContext {Parameters = {["assemblypath"] = commandLine}};
 
         serviceProcessInstaller.Installers.Add(new ServiceInstaller
         {
-            DisplayName = serviceInfo.DisplayName,
-            Description = serviceInfo.Description,
-            ServiceName = serviceInfo.Name,
-            StartType = serviceInfo.WindowsServiceInfo.StartType,
-            DelayedAutoStart = serviceInfo.WindowsServiceInfo.DelayedAutoStart,
+            DisplayName = _serviceInfo.DisplayName,
+            Description = _serviceInfo.Description,
+            ServiceName = _serviceInfo.Name,
+            StartType = _windowsServiceInfo.StartType,
+            DelayedAutoStart = _windowsServiceInfo.DelayedAutoStart,
         });
 
         return serviceProcessInstaller;
     }
 
-    public void Install(ServiceInfo serviceInfo)
+    public void Install()
     {
-        using var installer = CreateInstaller(serviceInfo);
+        using var installer = CreateInstaller();
 
         installer.Install(new Hashtable());
     }
 
-    public void Uninstall(ServiceInfo serviceInfo)
+    public void Uninstall()
     {
-        using var installer = CreateInstaller(serviceInfo);
+        using var installer = CreateInstaller();
 
         installer.Uninstall(null);
     }
 
-    public void Start(ServiceInfo serviceInfo)
+    public void Start()
     {
-        var serviceController = ServiceController.GetServices().SingleOrDefault(x => x.ServiceName == serviceInfo.Name);
+        var serviceController = ServiceController.GetServices().SingleOrDefault(x => x.ServiceName == _serviceInfo.Name);
         if (serviceController != null)
             serviceController.Start();
         else
-            Console.WriteLine("Unable to find {0} Windows service. Is it installed?", serviceInfo.Name);
+            Console.WriteLine("Unable to find {0} Windows service. Is it installed?", _serviceInfo.Name);
     }
 
-    public void Stop(ServiceInfo serviceInfo)
+    public void Stop()
     {
-        var serviceController = ServiceController.GetServices().SingleOrDefault(x => x.ServiceName == serviceInfo.Name);
+        var serviceController = ServiceController.GetServices().SingleOrDefault(x => x.ServiceName == _serviceInfo.Name);
         if (serviceController != null)
             serviceController.Stop();
         else
-            Console.WriteLine("Unable to find {0} Windows service. Is it installed?", serviceInfo.Name);
+            Console.WriteLine("Unable to find {0} Windows service. Is it installed?", _serviceInfo.Name);
     }
 
-    public void Run(ServiceInfo serviceInfo, IActualService actualService)
+    public void Run(IActualService actualService)
     {
-        ServiceBase.Run(new WindowsService(serviceInfo, actualService));
+        ServiceBase.Run(new WindowsService(_serviceInfo, actualService));
     }
 }

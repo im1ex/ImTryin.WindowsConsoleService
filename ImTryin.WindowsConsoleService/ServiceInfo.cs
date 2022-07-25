@@ -12,5 +12,6 @@ public class ServiceInfo
 
     public WindowsServiceInfo? WindowsServiceInfo { get; set; }
 
-    public string ExecutableLocation => Assembly.GetEntryAssembly()!.Location;
+    private string? _executableLocation;
+    public string ExecutableLocation => _executableLocation ??= Assembly.GetEntryAssembly()!.Location;
 }
