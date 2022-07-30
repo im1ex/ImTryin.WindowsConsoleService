@@ -20,7 +20,14 @@ internal class ConsoleServiceApplication
         _singletonId = serviceInfo.ConsoleServiceInfo.SingletonId;
     }
 
-    private string GetStartupLinkPath()
+    private string GetProgramsShortcutPath()
+    {
+        var programsFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Programs);
+
+        return Path.Combine(programsFolderPath, _serviceInfo.DisplayName + ".lnk");
+    }
+
+    private string GetStartupShortcutPath()
     {
         var startupFolderPath = Environment.GetFolderPath(Environment.SpecialFolder.Startup);
 
@@ -29,31 +36,53 @@ internal class ConsoleServiceApplication
 
     public void Install()
     {
-        var startupLinkPath = GetStartupLinkPath();
-        if (File.Exists(startupLinkPath))
+        dynamic shell = Activator.CreateInstance(Type.GetTypeFromProgID("WScript.Shell"));
+
+        var programsShortcutPath = GetProgramsShortcutPath();
+        if (File.Exists(programsShortcutPath))
         {
-            Console.WriteLine("'{0}' file already exists!", startupLinkPath);
-            return;
+            Console.WriteLine("'{0}' programs shortcut already exists!", programsShortcutPath);
+        }
+        else
+        {
+            dynamic shortcut = shell.CreateShortcut(programsShortcutPath);
+
+            shortcut.TargetPath = _serviceInfo.ExecutableLocation;
+            shortcut.WorkingDirectory = Path.GetDirectoryName(_serviceInfo.ExecutableLocation);
+
+            shortcut.Save();
         }
 
-        Type shellType = Type.GetTypeFromProgID("WScript.Shell");
-        dynamic shell = Activator.CreateInstance(shellType);
-        dynamic shortcut = shell.CreateShortcut(startupLinkPath);
+        var startupShortcutPath = GetStartupShortcutPath();
+        if (File.Exists(startupShortcutPath))
+        {
+            Console.WriteLine("'{0}' startup shortcut already exists!", startupShortcutPath);
+        }
+        else
+        {
+            dynamic shortcut = shell.CreateShortcut(startupShortcutPath);
 
-        shortcut.TargetPath = _serviceInfo.ExecutableLocation;
-        shortcut.Arguments = "/hidden";
-        shortcut.WorkingDirectory = Path.GetDirectoryName(_serviceInfo.ExecutableLocation);
+            shortcut.TargetPath = _serviceInfo.ExecutableLocation;
+            shortcut.Arguments = "/hidden";
+            shortcut.WorkingDirectory = Path.GetDirectoryName(_serviceInfo.ExecutableLocation);
 
-        shortcut.Save();
+            shortcut.Save();
+        }
     }
 
     public void Uninstall()
     {
-        var startupLinkPath = GetStartupLinkPath();
-        if (!File.Exists(startupLinkPath))
-            Console.WriteLine("'{0}' file is not found!", startupLinkPath);
+        var programsShortcutPath = GetProgramsShortcutPath();
+        if (!File.Exists(programsShortcutPath))
+            Console.WriteLine("'{0}' programs shortcut is not found!", programsShortcutPath);
         else
-            File.Delete(startupLinkPath);
+            File.Delete(programsShortcutPath);
+
+        var startupShortcutPath = GetStartupShortcutPath();
+        if (!File.Exists(startupShortcutPath))
+            Console.WriteLine("'{0}' startup shortcut is not found!", startupShortcutPath);
+        else
+            File.Delete(startupShortcutPath);
     }
 
     private IntPtr _consoleWindowHandle;
