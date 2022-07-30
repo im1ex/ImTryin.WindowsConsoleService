@@ -77,6 +77,7 @@ public static class ServiceApplication
 
             Console.WriteLine("  /hidden            - runs as Console service and hide console.");
             Console.WriteLine("                       It is possible to show hidden console by starting app one more time.");
+            Console.WriteLine("                       And hide it again when console minimizes.");
 
             Console.WriteLine("  /installConsole    - installs Console service. Creates shortcut in User's Startup folder.");
             Console.WriteLine("  /uninstallConsole  - installs Console service. Deletes shortcut from User's Startup folder.");

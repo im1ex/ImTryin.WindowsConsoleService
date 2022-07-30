@@ -2,7 +2,7 @@
 
 namespace ImTryin.WindowsConsoleService;
 
-public class WindowsService : ServiceBase
+internal class WindowsService : ServiceBase
 {
     private readonly IActualService _actualService;
 

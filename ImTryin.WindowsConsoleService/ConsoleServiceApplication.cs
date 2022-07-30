@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ImTryin.WindowsConsoleService.Api;
+using System;
 using System.IO;
 using System.Threading;
 
@@ -55,6 +56,7 @@ internal class ConsoleServiceApplication
             File.Delete(startupLinkPath);
     }
 
+    private IntPtr _consoleWindowHandle;
     private volatile bool _stopping;
 
     public void Run(IActualService actualService, bool hidden)
@@ -69,13 +71,18 @@ internal class ConsoleServiceApplication
             return;
         }
 
+        _consoleWindowHandle = ConsoleApi.GetConsoleWindow();
 
         if (hidden)
         {
-            if (WindowApi.GetConsoleProcessList(new int[1], 1) > 1)
+            if (ConsoleApi.GetConsoleProcessList(new int[1], 1) > 1)
                 Console.WriteLine("Do not use /hidden argument when running application from existing console. Skip hiding.");
             else
-                WindowApi.ShowWindow(WindowApi.GetConsoleWindow(), WindowApi.CommandShow.Hide);
+            {
+                WindowApi.ShowWindow(_consoleWindowHandle, WindowApi.CommandShow.Hide);
+
+                new Action(HookConsoleEvents).BeginInvoke(null, null);
+            }
         }
 
         new Action<EventWaitHandle>(ActivateConsole).BeginInvoke(eventWaitHandle, null, null);
@@ -103,10 +110,94 @@ internal class ConsoleServiceApplication
             if (_stopping)
                 break;
 
-            var consoleWindowHandle = WindowApi.GetConsoleWindow();
-
-            WindowApi.ShowWindow(consoleWindowHandle, WindowApi.CommandShow.Show);
-            WindowApi.SetForegroundWindow(consoleWindowHandle);
+            WindowApi.ShowWindow(_consoleWindowHandle, WindowApi.CommandShow.Show);
+            WindowApi.SetForegroundWindow(_consoleWindowHandle);
         }
+    }
+
+    private void HookConsoleEvents()
+    {
+        var consoleProcessId = GetConsoleHostProcessId();
+        if (consoleProcessId == 0)
+        {
+            Console.WriteLine("Unable to find console host process! Hide on minimize functionality is not enabled!");
+            return;
+        }
+
+        var winEventHookHandle = EventHookApi.SetWinEventHook(
+            EventHookApi.EventObjectLocationChange,
+            EventHookApi.EventObjectLocationChange,
+            IntPtr.Zero,
+            OnConsoleWindowEvent,
+            consoleProcessId,
+            0,
+            EventHookApi.WinEventHookFlags.OutOfContext);
+        if (winEventHookHandle == IntPtr.Zero)
+        {
+            Console.WriteLine("Unable to hook console host process events! Hide on minimize functionality is not enabled!");
+            return;
+        }
+
+        try
+        {
+            int result;
+            while (!_stopping && (result = MessageLoopApi.GetMessage(out var msg, IntPtr.Zero, 0, 0)) != 0)
+            {
+                if (result == -1)
+                {
+                    Console.WriteLine("HookConsoleEvents error on GetMessage");
+                }
+                else
+                {
+                    MessageLoopApi.TranslateMessage(ref msg);
+                    MessageLoopApi.DispatchMessage(ref msg);
+                }
+            }
+        }
+        finally
+        {
+            EventHookApi.UnhookWinEvent(winEventHookHandle);
+        }
+    }
+
+    private int GetConsoleHostProcessId()
+    {
+        WindowApi.GetWindowThreadProcessId(_consoleWindowHandle, out int consoleWindowProcessId);
+
+        var snapshotHandle = ProcessApi.CreateToolhelp32Snapshot(ProcessApi.Toolhelp32SnapshotFlags.Process, 0);
+        try
+        {
+            var processEntry32 = new ProcessApi.ProcessEntry32();
+            for (var b = ProcessApi.Process32First(snapshotHandle, ref processEntry32); b; b = ProcessApi.Process32Next(snapshotHandle, ref processEntry32))
+            {
+                if (processEntry32.th32ParentProcessID == consoleWindowProcessId)
+                {
+                    if (string.Equals(processEntry32.szExeFile, "conhost.exe", StringComparison.OrdinalIgnoreCase))
+                        return processEntry32.th32ProcessID;
+                }
+            }
+        }
+        finally
+        {
+            ProcessApi.CloseHandle(snapshotHandle);
+        }
+
+        return 0;
+    }
+
+    private void OnConsoleWindowEvent(
+        IntPtr windowEventHookHandle,
+        int @event,
+        IntPtr windowHandle,
+        int objectIdentifier,
+        int childIdentifier,
+        int eventThreadIdentifier,
+        int eventTimeMs)
+    {
+        if (windowHandle != _consoleWindowHandle || objectIdentifier != 0 || childIdentifier != 0)
+            return;
+
+        if (WindowApi.IsIconic(_consoleWindowHandle))
+            WindowApi.ShowWindow(_consoleWindowHandle, WindowApi.CommandShow.Hide);
     }
 }

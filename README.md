@@ -7,6 +7,7 @@ Following command line arguments available:
 
 /hidden            - runs as Console service and hide console.
                      It is possible to show hidden console by starting app one more time.
+                     And hide it again when console minimizes.
 
 /installConsole    - installs Console service. Creates shortcut in User's Startup folder.
 /uninstallConsole  - installs Console service. Deletes shortcut from User's Startup folder.

@@ -1,16 +1,10 @@
 ﻿using System;
 using System.Runtime.InteropServices;
 
-namespace ImTryin.WindowsConsoleService;
+namespace ImTryin.WindowsConsoleService.Api;
 
-public static class WindowApi
+internal static class WindowApi
 {
-    [DllImport("Kernel32.dll", SetLastError = true)]
-    public static extern int GetConsoleProcessList([MarshalAs(UnmanagedType.LPArray, SizeParamIndex = 1)] int[] processIds, int processIdsSize);
-
-    [DllImport("Kernel32.dll", SetLastError = true)]
-    public static extern IntPtr GetConsoleWindow();
-
     public enum CommandShow
     {
         Hide = 0,
@@ -34,4 +28,10 @@ public static class WindowApi
 
     [DllImport("User32.dll", SetLastError = true)]
     public static extern bool SetForegroundWindow(IntPtr windowHandle);
+
+    [DllImport("User32.dll", SetLastError = true)]
+    public static extern bool IsIconic(IntPtr windowHandle);
+
+    [DllImport("User32.dll", SetLastError = true)]
+    public static extern int GetWindowThreadProcessId(IntPtr windowHandle, out int processId);
 }

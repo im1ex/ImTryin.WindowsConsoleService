@@ -6,7 +6,7 @@ using System.ServiceProcess;
 
 namespace ImTryin.WindowsConsoleService;
 
-public class WindowsServiceApplication
+internal class WindowsServiceApplication
 {
     private readonly ServiceInfo _serviceInfo;
     private readonly WindowsServiceInfo _windowsServiceInfo;
