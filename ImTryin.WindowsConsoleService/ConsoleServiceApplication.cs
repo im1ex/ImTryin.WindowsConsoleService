@@ -90,10 +90,10 @@ internal class ConsoleServiceApplication
 
     public void Run(IActualService actualService, bool hidden)
     {
-        using var eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, _singletonId, out var createdNew);
+        using var singletonAppWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset, _singletonId, out var createdNew);
         if (!createdNew)
         {
-            eventWaitHandle.Set();
+            singletonAppWaitHandle.Set();
 
             Console.WriteLine("{0} is already running.", _serviceInfo.DisplayName);
 
@@ -114,18 +114,25 @@ internal class ConsoleServiceApplication
             }
         }
 
-        new Action<EventWaitHandle>(ActivateConsole).BeginInvoke(eventWaitHandle, null, null);
+        new Action<EventWaitHandle>(ActivateConsole).BeginInvoke(singletonAppWaitHandle, null, null);
 
         Console.WriteLine(_serviceInfo.DisplayName);
 
         if (actualService.Start(false))
         {
-            Console.WriteLine("Press any key to exit...");
-            Console.ReadKey(true);
+            Console.WriteLine("{0} started. Press Ctrl+C to shut down.", _serviceInfo.DisplayName);
+
+            var cancelWaitHandle = new ManualResetEventSlim(false);
+            Console.CancelKeyPress += (object sender, ConsoleCancelEventArgs e) => {
+                cancelWaitHandle.Set();
+                e.Cancel = true;
+            };
+
+            cancelWaitHandle.Wait();
         }
 
         _stopping = true;
-        eventWaitHandle.Set();
+        singletonAppWaitHandle.Set();
 
         actualService.Stop();
     }
